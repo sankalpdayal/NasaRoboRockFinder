@@ -44,7 +44,7 @@ def decision_step(Rover):
                     control_param = 0
                 else:
                     control_param = (np.clip(mean_dist,20,100)-20)/80*(np.clip(std_angles,25,40)-25)/15   
-                control_param = control_param*0.9					
+                control_param = control_param*1.0					
                 steer_dir = Rover.dir_global*control_param + mean_dir*(1-control_param)*(np.clip(Rover.vel,0,0.2)/0.2)
 								
                 Rover.steer = np.clip(steer_dir * 180/np.pi, -15, 15)
