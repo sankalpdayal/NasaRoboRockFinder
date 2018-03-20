@@ -182,7 +182,7 @@ Since running the simulator had different choices of resolution and graphics qua
 Setting|Configuration
 ------------- | -------------
 |Operating System| Windows 7 64 bit
-|Core| Intel i& 2.6 GHz 
+|Core| Intel i7 2.6 GHz 
 |Screen| 640 x 480
 |Graphics Quality| Good
 |FPS| 12(Min), 25(Max), 15(Typical)
