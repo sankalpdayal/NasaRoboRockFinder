@@ -1,54 +1,213 @@
+## Project: Search and Sample Return
+
+---
+
+
+**The goals / steps of this project are the following:**  
+
+**Training / Calibration**  
+
+* Download the simulator and take data in "Training Mode"
+* Test out the functions in the Jupyter Notebook provided
+* Add functions to detect obstacles and samples of interest (golden rocks)
+* Fill in the `process_image()` function with the appropriate image processing steps (perspective transform, color threshold etc.) to get from raw images to a map.  The `output_image` you create in this step should demonstrate that your mapping pipeline works.
+* Use `moviepy` to process the images in your saved dataset with the `process_image()` function.  Include the video you produce as part of your submission.
+
+**Autonomous Navigation / Mapping**
+
+* Fill in the `perception_step()` function within the `perception.py` script with the appropriate image processing functions to create a map and update `Rover()` data (similar to what you did with `process_image()` in the notebook). 
+* Fill in the `decision_step()` function within the `decision.py` script with conditional statements that take into consideration the outputs of the `perception_step()` in deciding how to issue throttle, brake and steering commands. 
+* Iterate on your perception and decision function until your rover does a reasonable (need to define metric) job of navigating and mapping.  
+
 [//]: # (Image References)
-[image_0]: ./misc/rover_image.jpg
-[![Udacity - Robotics NanoDegree Program](https://s3-us-west-1.amazonaws.com/udacity-robotics/Extra+Images/RoboND_flag.png)](https://www.udacity.com/robotics)
-# Search and Sample Return Project
+
+[image1]: ./output/warped_thresh.png
+[image2]: ./output/rock_identified.png
+[image3]: ./output/direction.png 
+[image4]: ./output/output_image.jpg 
+[image5]: ./output/sub_global_map.jpg 
+[image6]: ./output/output_image_max_dist_max_dir.jpg 
+[image7]: ./output/output_image_min_dir.jpg 
+[image8]: ./output/output_image_min_dist.jpg 
+[image9]: ./output/final_state.jpg 
 
 
-![alt text][image_0] 
+## [Rubric](https://review.udacity.com/#!/rubrics/916/view) Points
+### Here I will consider the rubric points individually and describe how I addressed each point in my implementation.  
 
-This project is modeled after the [NASA sample return challenge](https://www.nasa.gov/directorates/spacetech/centennial_challenges/sample_return_robot/index.html) and it will give you first hand experience with the three essential elements of robotics, which are perception, decision making and actuation.  You will carry out this project in a simulator environment built with the Unity game engine.  
+---
+### Writeup / README
 
-## The Simulator
-The first step is to download the simulator build that's appropriate for your operating system.  Here are the links for [Linux](https://s3-us-west-1.amazonaws.com/udacity-robotics/Rover+Unity+Sims/Linux_Roversim.zip), [Mac](	https://s3-us-west-1.amazonaws.com/udacity-robotics/Rover+Unity+Sims/Mac_Roversim.zip), or [Windows](https://s3-us-west-1.amazonaws.com/udacity-robotics/Rover+Unity+Sims/Windows_Roversim.zip).  
+#### 1. Provide a Writeup / README that includes all the rubric points and how you addressed each one.  
 
-You can test out the simulator by opening it up and choosing "Training Mode".  Use the mouse or keyboard to navigate around the environment and see how it looks.
+You're reading it!
 
-## Dependencies
-You'll need Python 3 and Jupyter Notebooks installed to do this project.  The best way to get setup with these if you are not already is to use Anaconda following along with the [RoboND-Python-Starterkit](https://github.com/ryan-keenan/RoboND-Python-Starterkit). 
+### Notebook Analysis
+#### 1. Run the functions provided in the notebook on test images (first with the test data provided, next on data you have recorded). Add/modify functions to allow for color selection of obstacles and rock samples.
+I used the same logic as taught in lessons to perforom thresholdoing to detect navigable terrain. I extended the existing function by adding an option if pixel values above the threshold is chosen or below. Above option is used for detection of navigable terrain and below for obstructions.
+An example of warped and thresholded image is
+ 
+![alt text][image1]
+
+To detect rock pixels I created a new function `color_thresh_range()` which takes in a max threshold and a min threshold for colors and returns the pixels which lie within this range. The function is defined in the section Color Thresholding of notebook Rover_Project_Test_Notebook.ipynb. 
+An example of binary image with pixels identified as rocks is
+
+![alt text][image2]
+
+The binary thresholded image of navigable terrain is used for estimating direction for rover. Same method as taugh in the class is used. The complete pipeline from image to warped image to thresholded image and then to direction is shown here
+
+![alt text][image3]
 
 
-Here is a great link for learning more about [Anaconda and Jupyter Notebooks](https://classroom.udacity.com/courses/ud1111)
+#### 1. Introduction of **sub global direction** to go towards unexplored areas
 
-## Recording Data
-I've saved some test data for you in the folder called `test_dataset`.  In that folder you'll find a csv file with the output data for steering, throttle position etc. and the pathnames to the images recorded in each run.  I've also saved a few images in the folder called `calibration_images` to do some of the initial calibration steps with.  
+New method is added to help navigate the rover in **Not yet explored Areas**. This is done in two steps
+1. First a sub global map is obtained using the global map and current position and direction of rover.
+2. Using this sub global map, the pixel values defining the nature of terrain is used to determine a global direction. Highest weight is given to those areas where all 3 pixel values are 0. Which means the area is not explored yet.  
 
-The first step of this project is to record data on your own.  To do this, you should first create a new folder to store the image data in.  Then launch the simulator and choose "Training Mode" then hit "r".  Navigate to the directory you want to store data in, select it, and then drive around collecting data.  Hit "r" again to stop data collection.
+The function 'get_sub_global_map()' gives a sub global map at the current position of rover and pointinting in the direction faced by rover. It does following
+1. Takes input the latest updated world map till now. (World map has pixel values R for obstruction, G for rocks and B for movable path. If all are 0, then that area is not explored yet.)
+2. Takes input scale (size of sub global map) and creates a mask of x, y positions with x,y = 0,0 as center of rover and y<0 as left, y>0 as right and x>0 as front.
+3. Then rotate and translate this mask of positions using current rover position and direction. This gives x,y positions in the world map.
+4. Fetch the pixel values corresponding to x,y positions from the world map.
+5. Return the pixel values as weights and x and y positions in the rover coordinates.
 
-## Data Analysis
-Included in the IPython notebook called `Rover_Project_Test_Notebook.ipynb` are the functions from the lesson for performing the various steps of this project.  The notebook should function as is without need for modification at this point.  To see what's in the notebook and execute the code there, start the jupyter notebook server at the command line like this:
+These pixel values will be used to get direction. Highest weight is given if the value is 0, which means the area is not explored yet. The function is written under the section Global Direction of notebook Rover_Project_Test_Notebook.ipynb.
 
-```sh
-jupyter notebook
-```
+Another function `get_sub_global_direction()` uses the pixel values of the sub global map as weight for the direction corresponding to that pixel. Weight is calculated in 
+1. Add the pixel values for obsturction and movable terrain.
+2. Subtract this value from 255 and normalize it to 1. So if the sum of pixels is 0, then weight is 1.
+3. If the weight is <0.95 then remove those pixels under considerations.
+4. If there is no pixel left then give current direction as 0 else take weighted mean.
+This gives a direction which is biased towards areas which are not yet explored enough.  An example of instance during the run of rover and the sub global map at that instance is shown here
 
-This command will bring up a browser window in the current directory where you can navigate to wherever `Rover_Project_Test_Notebook.ipynb` is and select it.  Run the cells in the notebook from top to bottom to see the various data analysis steps.  
+Instance during the run. In the image
+1. Top left shows the current scene as seen by the rover.
+2. To right is the warped image
+3. Bottom left is the thresholded image for naigable terrain.
+4. Bottom right is the direction chosen.
+ 
+![alt text][image4]
 
-The last two cells in the notebook are for running the analysis on a folder of test images to create a map of the simulator environment and write the output to a video.  These cells should run as-is and save a video called `test_mapping.mp4` to the `output` folder.  This should give you an idea of how to go about modifying the `process_image()` function to perform mapping on your data.  
+Sub global map at that instance
 
-## Navigating Autonomously
-The file called `drive_rover.py` is what you will use to navigate the environment in autonomous mode.  This script calls functions from within `perception.py` and `decision.py`.  The functions defined in the IPython notebook are all included in`perception.py` and it's your job to fill in the function called `perception_step()` with the appropriate processing steps and update the rover map. `decision.py` includes another function called `decision_step()`, which includes an example of a conditional statement you could use to navigate autonomously.  Here you should implement other conditionals to make driving decisions based on the rover's state and the results of the `perception_step()` analysis.
+![alt text][image5]
 
-`drive_rover.py` should work as is if you have all the required Python packages installed. Call it at the command line like this: 
+#### 1. Merging of **sub global direction** and **local direction**
 
-```sh
-python drive_rover.py
-```  
+The idea of merging global and local direction is using the concept that when the space in front of rover is high, then rover can follow the global direction, where as when the space in front of rover is constricted then rover follows the local direction. Thei function works in following manner. The judgement on how much current space is open or constricted can be done using the mean distance and standard deviation of direction of possible direction vectors in current image.
 
-Then launch the simulator and choose "Autonomous Mode".  The rover should drive itself now!  It doesn't drive that well yet, but it's your job to make it better!  
+1. If the *mean_dir_sub_global* is 0, this means there is no global direction, hence make control parameter to 0.
+2. Else, normalize distance between 0 to 1. If distance is high means there is enough space in front to navigate.
+3. Normalize std between 0 to 1. If std deviation is high, this means there are many possible direction to choose from.
+4. Hence to get final control parameter, mulitply these two. So that the final parameter is 1 only when space is also high and possible directions to choose is also high.
 
-**Note: running the simulator with different choices of resolution and graphics quality may produce different results!  Make a note of your simulator settings in your writeup when you submit the project.**
+Also normalized rover speed is multiplied. This allows the control parameter high only when rover speed is high. This allows that rover has been moving freely. 
 
-### Project Walkthrough
-If you're struggling to get started on this project, or just want some help getting your code up to the minimum standards for a passing submission, we've recorded a walkthrough of the basic implementation for you but **spoiler alert: this [Project Walkthrough Video](https://www.youtube.com/watch?v=oJA6QHDPdQw) contains a basic solution to the project!**.
+Final fusion is done as **final_direction = (mean_dir_sub_global)(control_param) + (mean_dir)(1-control_param)**. The function to perform this task is given under the section Merge Global and Local direction in the same notebook.
+
+Instance when both distance and direction are high. In this scenario, the rover has many options to choose among local direction, hence the weight for global direction tends to 1. 
+
+![alt text][image6]
+
+Instances when the distance is high, but there arent many directions to choose from because path is too tight. Hence factor due to standard deviaton is 0 and hence the weight for global direction tends to 0.
+
+![alt text][image7]
+ 
+Instances when the distance is low and there isnt much space to move. Hence factor due to distance is 0 and hence the weight for global direction tends to 0.
+
+![alt text][image8]
+
+#### 1. Populate the `process_image()` function with the appropriate analysis steps to map pixels identifying navigable terrain, obstacles and rock samples into a worldmap.  Run `process_image()` on your test data using the `moviepy` functions provided to create video output of your result. 
+Process image performs the complete pipeline for processing of image. After creating warped binary thresholded image for navigable terrain, it estimates the local direction. Using the current positions and yaw or rover and the global map upated till now, estimates the sub global map and gets global direction.
+Using the standard deviation and distances of navigable terrain in local map, gets the control parameter or weight for global direction. The intermediate values are shown on the top left of video.
+1. First value is frame number
+2. Second value is mean distance
+3. Third value is standard deviation of angles.
+4. Fourth value is control parameter on a scale of 1 to 10.
+
+... In each frame in video 
+1. Top left shows the current scene as seen by the rover.
+2. To right is the warped image
+3. Bottom left is the thresholded image for naigable terrain.
+4. Bottom right is the direction chosen.
+
+[![Results on Manual Run of Rover](http://img.youtube.com/vi/qgExWvuIuWI/0.jpg)](http://www.youtube.com/watch?v=qgExWvuIuWI)
+
+...
+### Autonomous Navigation and Mapping
+
+#### 1. Fill in the `perception_step()` (in `perception.py`) and `decision_step()` (in `decision.py`) functions in the autonomous mapping scripts.
+In general, all the additions done in the notebook were ported to python scripts. These porting included functionality related to color thresholding, obtaining sub global map and estimating control parameter or weight for global direction. 
+Other than these, there are two more additions done to the python scripts which are as follows
+1. Getting the final direction for rover using the local direction, global direction and weight.
+2. Introduction of a new mode for rover `stop_obs`. The rover goes into this mode if it is has been throttling for a few seconds but the velocity is still close to 0. This can happen if there a small rock in the path of rover. To get out of this state, 
+rover rotates till the yaw has changes more than 30 degrees since it was in `stop_obs`. This way rover finds a way new way around the rock.
+
+More specific updates in each script is given here.
+
+Following updates were done in the script `perception.py`
+1. Introduced option to choose above or below threshold in function `color_thresh` to detect navigable terrain and obstruction using the the same function.
+2. Added function `color_thresh_range` to detect pixels containing rocks in an image.
+3. Added function `get_sub_global_map` to get the sub global map from current position and yaw or rover and latest updated global map.
+4. Specifically in the function `perception_step()` following modifications are done.
+	1. Completed pipeline to get warped binary thresholded image for navigable terrain, obstructions and rocks.
+	2. Obtained the corresponding world map positions for these pixels and updated the `Rover.worldmap` accordingly.
+	3. Using the binary image of navigable terrain, obtained the possible distances and directions.
+	4. Using the current location and yaw of rover, obtained the current sub global map. 
+	5. Added logic to use the pixles values as weights and get the sub global dierection.
+	
+...
+Following updates were done in the function `decision_step()` (in `decision.py`)
+1. Added logic to obtain mean local direction.
+2. Added logic to get control parameter or weight for sub global direction using the mean of distances and standard deviation of angles.
+3. Updated steering direction using the local direction, sub global direction and weight.
+4. Added method to keep track of last 10 throttle values and velocity in an array.
+5. Introduced condition to check if the mean throttle for last 10 values is high and mean velocity for last 10 values is still low and if check is true, then change mode to `stop_obs` and store the yaw. Also stop throttle and steer and set brakes.
+6. Introduced condition to get out of `stop_obs` by checking if either velocity is high enough or if yaw has changed at least 30 since the rover went into the `stop_obs` mode. If the velocity is low and yaw has changed more than 30 deg, then change the mode back to 'forward'
+ 
+... 
+Following updates were done in initialization of structure `Rover_state()` in script `drive_rover.py` to store more information
+1. Introduced variable `dir_global` to store sub global direction estimated in `perception_step()` (in `perception.py`) and to be used in `decision_step()` (in `decision.py`) 
+2. Introduced array `throttle_speed` to store last 10 throttle values and velocity. This are updated and used in `decision_step()` (in `decision.py`) 
+3. Introduced variable `current_yaw` to store yaw of rover when it changes mode from `forward` to `stop_obs`. This is also updated and used in `decision_step()` (in `decision.py`) 
+
+For debugging, I introduced display of intermediate variables Rover.mode, mean throttle and mean velocity in last 10 seconds in the command prompt. These changes were done in function `update_rover()` in script `supporting_functions.py`. 
+
+#### 2. Launching in autonomous mode your rover can navigate and map autonomously. 
+
+Since running the simulator had different choices of resolution and graphics quality and output can have different frames per second and output can vary, following table lists the details for the configuration which I had.
+|Operating System| Windows 7 64 bit|
+|Core| Intel i& 2.6 GHz |
+|Screen| 640 x 480|
+|Graphics Quality| Good|
+|FPS| 12(Min), 25(Max), 15(Typical)| 
+
+The last automonous run result had about **Mapped 98% ** with **Fidelity 66.1%** and **Located 5** rocks. Following image is the screen shot of output when I terminated the run.
+
+![alt text][image9]
+ 
+The images for the last run are stored in the folder ![./auto_dataset3]. The video stream of the complete run is here
+ 
+[![Results of Autonomous Run of Rover](http://img.youtube.com/vi/CzpICfFCbXw/0.jpg)](http://www.youtube.com/watch?v=CzpICfFCbXw)
+
+ 
+I took all the fundamentals from the class but didnt go beyond that. To challenge myself I didnt look at the walk through video as it was mentioned it had a solution. With just the basic navigation, rover was getting stuck in a specific area 
+and was not exploring in new areas. This I felt because it didnt have a context of exploring new areas. If a human had to perform this task he/she will first see which areas have been explored and which are not. Then whenever there is a turn or
+technically more space to navigate, will choose a direction which will lead to un explored area. Hence to introduce this intelligence, I added a concept of have a sub global map that gives a direction which is biased towards the areas that are
+not explored yet. To measure if there is enough space to manuever I introduced a control parameter that increased when there is more space. After tuning to what scale a suset of global map has to be considered and to what extent a space is considered 
+enough navigable to consider more options for direction, the concept worked well to explore new areas.
+
+Also I noticed that sometimes the rover was getting stuck in areas where there were rocks in pathway. This is an issue because the direction obtained was somewhat straight and still there were enough visible pixels which was stopping the rover to go
+in stop mode. To solve this I introduced a new mode as stopped due to obstruction. In obstruction I noticed that rover was giving its full throttle but speed wasnt increasing. Hence I introuced a mathematical was of monitoring this and put the rover into
+stop due to obstruction mode. And to get out of this mode, simple solution was to change yaw a little and try moving again. This worked well to help rover to get unstuck.
+
+Possible improvements that I would make is to make the global scale adaptive such that first it explores more near by areas, then it increases the scales and starts exploring farther areas and keep doing this till it has explored complete map. Also
+luckily in this most of the offshoot segements are stright but if they have curvature or turns, it would be a good idea to define the map area as connected segements that would be more like a digital map. And lastly I would like to include the way that
+robot goes close to the rocks and lifts them up and then finally returns to the center. This can be done by first putting the rover in a new mode for going to pick up rock. During this mode, introduce logic for 
+estimating a distance (in global coordinates) between rock center and rover position. The rover will speed up and slow down in way to achieve an ideal distance. Once the rock is picked the rover can again go back in forward mode. 
+
+
+
 
 
