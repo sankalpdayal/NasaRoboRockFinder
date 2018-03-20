@@ -180,12 +180,12 @@ For debugging, I introduced display of intermediate variables Rover.mode, mean t
 Since running the simulator had different choices of resolution and graphics quality and output can have different frames per second that can result in variations in results, I have noted these and are given in following table listing the details for the configuration which I had.
 
 Setting|Configuration
------------
-|Operating System| Windows 7 64 bit|
-|Core| Intel i& 2.6 GHz |
-|Screen| 640 x 480|
-|Graphics Quality| Good|
-|FPS| 12(Min), 25(Max), 15(Typical)| 
+------------- | -------------
+|Operating System| Windows 7 64 bit
+|Core| Intel i& 2.6 GHz 
+|Screen| 640 x 480
+|Graphics Quality| Good
+|FPS| 12(Min), 25(Max), 15(Typical)
 
 The last automonous run result had about **Mapped 98%** with **Fidelity 66.1%** and **Located 5** rocks. Following image is the screen shot of output when I terminated the run.
 
